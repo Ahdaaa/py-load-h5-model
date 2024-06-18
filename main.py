@@ -25,11 +25,10 @@ def transform_image(pillow_image):
     return data
 
 def predict(x):
-    predictions = model(x)
-    predictions = tf.nn.softmax(predictions)
-    pred0 = predictions[0]
-    label0 = np.argmax(pred0)
-    return label0
+    prediction = model.predict(x)
+    predicted_class_index = np.argmax(prediction)
+    confidence = float(prediction[0][predicted_class_index] * 100)
+    return predicted_class_index, confidence
 
 @app.route('/predict', methods=['POST'])
 def predict_image():
@@ -37,7 +36,7 @@ def predict_image():
     if not imageName:
         return jsonify({"error": "No imageName provided"}), 400
     
-    urlBucket = "https://storage.googleapis.com/example-bucket-test-cc-trw/"
+    urlBucket = "https://storage.googleapis.com/example-bucket-test-cc-trw/prediction/" 
     filepath = urlBucket + imageName
 
     try:
@@ -45,8 +44,10 @@ def predict_image():
         image_bytes = np.asarray(bytearray(contents.read()), dtype="uint8")
         pillow_img = Image.open(io.BytesIO(image_bytes)).convert('L')
         tensor = transform_image(pillow_img)
-        prediction = predict(tensor)
-        data = {"prediction": int(prediction)}
+        prediction, confidence = predict(tensor)
+        
+        # data = {"prediction": int(prediction)}
+        data = {"prediction": int(prediction), "confidence": round(float(confidence), 2)}
         return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
